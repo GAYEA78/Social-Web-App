@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Edit Event</h1>
+  <form method="post">
+    <label>Activity Group Name:</label>
+    <input type="text" name="activity_group_name" value="{{ event.activity_group_name }}" required><br>
+    <label>Date:</label>
+    <input type="date" name="date" value="{{ event.date }}" required><br>
+    <label>Location ID:</label>
+    <input type="number" name="location_id" value="{{ event.location_id }}"><br>
+    <label>Max Participants:</label>
+    <input type="number" name="max_participants" value="{{ event.max_participants }}"><br>
+    <label>Cost:</label>
+    <input type="number" name="cost" value="{{ event.cost }}"><br>
+    <label>Registration Required:</label>
+    <input type="checkbox" name="registration_required" {% if event.registration_required %}checked{% endif %}><br>
+    <label>Registration Deadline:</label>
+    <input type="date" name="registration_deadline" value="{{ event.registration_deadline }}"><br>
+    <button type="submit">Update Event</button>
+  </form>
+{% endblock %} 

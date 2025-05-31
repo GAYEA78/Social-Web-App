@@ -1,0 +1,237 @@
+/* Custom styles for the e-commerce application */
+
+/* General styles */
+body {
+    background-color: #f9fafb;
+    min-height: 100vh;
+}
+
+/* Navigation styles */
+.nav-link {
+    transition: color 0.2s ease-in-out;
+}
+
+.nav-link:hover {
+    color: #ffc220;
+}
+
+/* Card styles */
+.product-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Button styles */
+.btn-primary {
+    background-color: #041e42;
+    border-color: #041e42;
+    color: white;
+    transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #0a2e5c;
+    border-color: #0a2e5c;
+}
+
+.btn-secondary {
+    background-color: #ffc220;
+    border-color: #ffc220;
+    color: #041e42;
+    transition: background-color 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background-color: #ffcf4d;
+    border-color: #ffcf4d;
+}
+
+/* Form styles */
+.form-control:focus {
+    border-color: #041e42;
+    box-shadow: 0 0 0 0.2rem rgba(4, 30, 66, 0.25);
+}
+
+/* Flash message styles */
+.flash {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Auth pages */
+.auth-container {
+    max-width: 400px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.auth-title {
+    color: #041e42;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Profile page */
+.profile-section {
+    background-color: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.profile-heading {
+    color: #041e42;
+    border-bottom: 2px solid #f3f4f6;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+/* Checkout process */
+.checkout-step {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.step-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #e5e7eb;
+    color: #4b5563;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+    font-weight: bold;
+}
+
+.step-active .step-number {
+    background-color: #041e42;
+    color: white;
+}
+
+.step-complete .step-number {
+    background-color: #10b981;
+    color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .auth-container {
+        margin: 1rem;
+        padding: 1.5rem;
+    }
+}
+
+/* Glassmorphism card effect */
+.glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    transition: box-shadow 0.3s, transform 0.3s;
+}
+.glass-card:hover {
+    box-shadow: 0 16px 40px 0 rgba(31, 38, 135, 0.22);
+    transform: translateY(-4px) scale(1.02);
+}
+
+/* Modern button styles */
+.btn-gradient {
+    background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
+    color: #fff;
+    font-weight: 600;
+    border: none;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(60, 72, 180, 0.08);
+    transition: background 0.3s, box-shadow 0.3s, transform 0.2s;
+}
+.btn-gradient:hover {
+    background: linear-gradient(90deg, #1d4ed8 0%, #6d28d9 100%);
+    box-shadow: 0 4px 16px rgba(60, 72, 180, 0.16);
+    transform: translateY(-2px) scale(1.03);
+}
+
+/* Floating label form fields */
+.form-floating {
+    position: relative;
+}
+.form-floating > input,
+.form-floating > textarea {
+    width: 100%;
+    padding: 1.25rem 0.75rem 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid #e5e7eb;
+    background: rgba(255,255,255,0.8);
+    transition: border 0.2s, box-shadow 0.2s;
+}
+.form-floating > label {
+    position: absolute;
+    top: 1.1rem;
+    left: 0.85rem;
+    color: #6b7280;
+    font-size: 1rem;
+    pointer-events: none;
+    transition: all 0.2s;
+    background: transparent;
+}
+.form-floating > input:focus + label,
+.form-floating > input:not(:placeholder-shown) + label,
+.form-floating > textarea:focus + label,
+.form-floating > textarea:not(:placeholder-shown) + label {
+    top: 0.3rem;
+    left: 0.7rem;
+    font-size: 0.85rem;
+    color: #2563eb;
+    background: #fff;
+    padding: 0 0.2rem;
+}
+
+/* Flash message animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Badge styles */
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.75em;
+    font-size: 0.85em;
+    font-weight: 600;
+    border-radius: 0.75em;
+    background: linear-gradient(90deg, #fef08a 0%, #fde68a 100%);
+    color: #92400e;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Responsive tweaks */
+@media (max-width: 640px) {
+    .glass-card { border-radius: 0.75rem; }
+    .btn-gradient { padding: 0.6rem 1rem; font-size: 1rem; }
+} 

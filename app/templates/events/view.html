@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}{{ event.activity_group_name }} - {{ event.date }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <h1 class="text-3xl font-bold">{{ event.activity_group_name }}</h1>
+                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    <div class="flex gap-2">
+                        <a href="{{ url_for('events.edit_event', event_id=event.id) }}"
+                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            Edit Event
+                        </a>
+                        <form action="{{ url_for('events.delete_event', event_id=event.id) }}" method="POST" class="inline">
+                            <button type="submit" onclick="return confirm('Are you sure you want to delete this event?')"
+                                class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                                Delete Event
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h2 class="text-xl font-semibold mb-4">Event Details</h2>
+                        <div class="space-y-4">
+                            <p class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <strong>Date:</strong> {{ event.date }}
+                            </p>
+                            {% if event.max_participants %}
+                            <p class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-4a4 4 0 11-8 0 4 4 0 018 0z"/>
+                                </svg>
+                                <strong>Max Participants:</strong> {{ event.max_participants }}
+                            </p>
+                            {% endif %}
+                            {% if event.cost > 0 %}
+                            <p class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 8v8"/>
+                                </svg>
+                                <strong>Cost:</strong> ${{ event.cost }}
+                            </p>
+                            {% endif %}
+                            {% if event.registration_required %}
+                            <div class="mt-4">
+                                <span class="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">Registration Required</span>
+                                {% if event.registration_deadline %}
+                                <p class="text-sm text-gray-500 mt-1">
+                                    Deadline: {{ event.registration_deadline }}
+                                </p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {% if current_user.is_authenticated %}
+                        <div class="mt-8">
+                            {% if is_registered %}
+                            <form action="{{ url_for('events.cancel_registration', event_id=event.id) }}" method="POST">
+                                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                                    Cancel Registration
+                                </button>
+                            </form>
+                            {% elif is_waitlisted %}
+                            <p class="text-blue-600">You are on the waitlist for this event.</p>
+                            {% else %}
+                            <form action="{{ url_for('events.register_for_event', event_id=event.id) }}" method="POST">
+                                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                                    Register for Event
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if location %}
+                    <div>
+                        <h2 class="text-xl font-semibold mb-4">Location</h2>
+                        <div class="space-y-2">
+                            <p>{{ location.address }}</p>
+                            <p>{{ location.city }}, {{ location.state }} {{ location.zip_code }}</p>
+                            <iframe width="100%" height="300" frameborder="0" style="border:0"
+                                src="{{ location.get_google_maps_embed_url() }}" allowfullscreen>
+                            </iframe>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if prerequisites %}
+                <div class="mt-8">
+                    <h2 class="text-xl font-semibold mb-4">Prerequisites</h2>
+                    <div class="space-y-4">
+                        {% for prereq in prerequisites %}
+                        <div class="border rounded p-4">
+                            <h3 class="font-medium">{{ prereq.activity_group_name }}</h3>
+                            <p class="text-gray-600">Date: {{ prereq.date }}</p>
+                            <p class="text-gray-600">Minimum Performance: {{ prereq.minimum_performance }}</p>
+                            <p class="text-gray-600">Qualification Period: {{ prereq.qualification_period }} days</p>
+                            {% if prereq.is_waiver_allowed %}
+                            <p class="text-green-600">Waiver may be allowed</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if current_user.is_authenticated and current_user.is_admin %}
+                <div class="mt-8">
+                    <h2 class="text-xl font-semibold mb-4">Manage Prerequisites</h2>
+                    <a href="{{ url_for('prerequisites.list_prerequisites', event_id=event.id) }}"
+                        class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                        Add Prerequisites
+                    </a>
+                </div>
+
+                <div class="mt-8">
+                    <h2 class="text-xl font-semibold mb-4">Waitlist Management</h2>
+                    <form action="{{ url_for('events.notify_waitlist', event_id=event.id) }}" method="POST">
+                        <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Notify Next User
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

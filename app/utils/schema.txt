@@ -1,0 +1,114 @@
+This schema describes the Boston Area Activity Groups database, supporting residents, activity groups, events, and sessions.
+
+
+Entity: resident
+- id INTEGER PRIMARY KEY
+- name TEXT NOT NULL
+- email TEXT UNIQUE NOT NULL
+- phone_number TEXT UNIQUE
+- interests TEXT
+- date_of_birth TEXT -- format: YYYY-MM-DD
+- profile_image TEXT -- path or URL
+
+
+Entity: activity_group
+- name TEXT PRIMARY KEY
+- category TEXT NOT NULL
+- description TEXT NOT NULL
+- founding_date TEXT
+- website TEXT
+- email TEXT NOT NULL
+- phone_number TEXT
+- social_media_links TEXT -- stored as a JSON string
+- is_active BOOLEAN DEFAULT 1
+- total_members INTEGER DEFAULT 0
+- event_frequency TEXT
+- membership_fee INTEGER
+- open_to_public BOOLEAN
+- min_age INTEGER
+
+
+Entity: review
+- id INTEGER PRIMARY KEY
+- resident_id INTEGER NOT NULL REFERENCES residents(id)
+- activity_group_name TEXT NOT NULL REFERENCES activity_groups(name)
+- content TEXT
+- star_rating INTEGER CHECK (star_rating BETWEEN 1 AND 5)
+- review_date TEXT
+- is_verified BOOLEAN DEFAULT 0
+
+
+Entity: event
+- id INTEGER PRIMARY KEY
+- activity_group_name TEXT NOT NULL REFERENCES activity_groups(name)
+- date TEXT NOT NULL
+- location_id INTEGER REFERENCES locations(id)
+- max_participants INTEGER
+- cost INTEGER
+- registration_required BOOLEAN
+- registration_deadline TEXT
+
+
+Entity: session
+- id INTEGER PRIMARY KEY
+- activity_group_name TEXT NOT NULL REFERENCES activity_groups(name)
+- event_id INTEGER REFERENCES events(id)
+- date TEXT
+- attendance INTEGER
+- agenda TEXT
+
+
+Entity: location
+- id INTEGER PRIMARY KEY
+- address TEXT
+- city TEXT
+- state TEXT
+- zip_code TEXT
+
+ASSOCIATIVE ENTITIES:
+
+Entity: member (associative)
+- resident_id INTEGER REFERENCES residents(id)
+- activity_group_name TEXT REFERENCES activity_groups(name)
+- join_date TEXT
+- role TEXT
+- PRIMARY KEY (resident_id, activity_group_name)
+
+Entity: hosts (associative)
+- activity_group_name TEXT REFERENCES activity_groups(name)
+- session_id INTEGER REFERENCES sessions(id)
+- PRIMARY KEY (activity_group_name, session_id)
+
+Entity: prerequisite (associative, self-referencing)
+- event_id INTEGER REFERENCES events(id)
+- prerequisite_event_id INTEGER REFERENCES events(id)
+- minimum_performance INTEGER
+- qualification_period INTEGER
+- is_waiver_allowed BOOLEAN
+- PRIMARY KEY (event_id, prerequisite_event_id)
+
+
+Constraints:
+
+UNIQUE CONSTRAINTS
+   - resident.email is UNIQUE.
+   - resident.phone_number is UNIQUE.
+   - activity_group.name is UNIQUE (since name is used as identifier, also the PK).
+
+CHECK CONSTRAINTS
+   - review.star_rating must be between 1 and 5.
+     CHECK (star_rating BETWEEN 1 AND 5)
+   - prerequisite.event_id must not equal prerequisite_event_id.
+     CHECK (event_id != prerequisite_event_id)
+
+NOT NULL CONSTRAINTS
+   - resident.name, resident.email cannot be NULL.
+   - review.id, review.activity_group_name cannot be NULL.
+   - event.activity_group_name, event.date cannot be NULL.
+   - member.resident_id, member.activity_group_name cannot be NULL.
+
+BOOLEAN FIELDS (Stored as INTEGER 0 or 1)
+   - is_active, is_verified, open_to_public, registration_required, is_waiver_allowed
+
+DATE FORMAT (Handled in application logic)
+   - All dates (e.g., date_of_birth, review_date, event.date, registration_deadline) should follow 'YYYY-MM-DD' format.

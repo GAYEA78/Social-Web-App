@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8">
+    <h1 class="text-3xl font-bold mb-8">Admin Dashboard</h1>
+    <div class="mb-10">
+        <h2 class="text-xl font-semibold mb-4">Events You Created</h2>
+        {% if created_events %}
+        <div class="space-y-4">
+            {% for event in created_events %}
+            <div class="bg-white rounded-lg shadow p-4 flex flex-col gap-4">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <div class="font-bold text-lg">{{ event.activity_group_name }}</div>
+                        <div class="text-gray-600">Date: {{ event.date }}</div>
+                    </div>
+                    <div class="flex flex-col md:flex-row md:items-center gap-2">
+                        <span class="text-blue-700 font-semibold">Registered: {{ event.registered_count }}</span>
+                        <span class="text-purple-700 font-semibold">Waitlist: {{ event.waitlist_count }}</span>
+                        <a href="{{ url_for('events.view_event', event_id=event.id) }}" class="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition">Manage</a>
+                    </div>
+                </div>
+                <details class="mt-4">
+                    <summary class="cursor-pointer font-semibold text-blue-700">Show Registrations & Waitlist</summary>
+                    <div class="mt-4">
+                        <h3 class="font-semibold mb-2">Registered Users</h3>
+                        {% if event_user_info[event.id]['registered'] %}
+                        <table class="w-full mb-4 text-sm">
+                            <thead><tr><th>Name</th><th>Email</th><th>Date</th><th>Status</th><th>Remove</th></tr></thead>
+                            <tbody>
+                            {% for user in event_user_info[event.id]['registered'] %}
+                            <tr class="border-b">
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.created_at }}</td>
+                                <td>{{ user.status }}</td>
+                                <td>
+                                    <form method="POST" action="#">
+                                        <button class="text-red-600 hover:underline" title="Remove">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="text-gray-500 mb-4">No registered users.</div>
+                        {% endif %}
+                        <h3 class="font-semibold mb-2">Waitlisted Users</h3>
+                        {% if event_user_info[event.id]['waitlisted'] %}
+                        <table class="w-full text-sm">
+                            <thead><tr><th>Name</th><th>Email</th><th>Date</th><th>Promote</th><th>Remove</th></tr></thead>
+                            <tbody>
+                            {% for user in event_user_info[event.id]['waitlisted'] %}
+                            <tr class="border-b">
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.created_at }}</td>
+                                <td>
+                                    <form method="POST" action="#">
+                                        <button class="text-green-600 hover:underline" title="Promote">Promote</button>
+                                    </form>
+                                </td>
+                                <td>
+                                    <form method="POST" action="#">
+                                        <button class="text-red-600 hover:underline" title="Remove">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="text-gray-500">No waitlisted users.</div>
+                        {% endif %}
+                    </div>
+                </details>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-gray-500">You have not created any events yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

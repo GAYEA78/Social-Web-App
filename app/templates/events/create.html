@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Create Event{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto bg-white p-8 rounded shadow">
+  <h2 class="text-2xl font-bold mb-6">Create a New Event</h2>
+  <form method="post">
+    <div class="mb-4">
+      <label class="block mb-1 font-semibold" for="activity_group_name">Activity Group</label>
+      <select class="w-full border rounded px-3 py-2 mb-2" id="activity_group_name_select" name="activity_group_name_select">
+        <option value="">-- Select an existing group --</option>
+        {% for group in activity_groups %}
+          <option value="{{ group.name }}">{{ group.name }}</option>
+        {% endfor %}
+      </select>
+      <input class="w-full border rounded px-3 py-2" type="text" id="activity_group_name" name="activity_group_name" placeholder="Or enter a new group name">
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-semibold" for="name">Event Name</label>
+      <input class="w-full border rounded px-3 py-2" type="text" id="name" name="name" required>
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-semibold" for="date">Date</label>
+      <input class="w-full border rounded px-3 py-2" type="date" id="date" name="date" required>
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-semibold">Location</label>
+      <input class="w-full border rounded px-3 py-2 mb-2" type="text" name="address" placeholder="Address" required>
+      <div class="flex gap-2 mb-2">
+        <input class="w-full border rounded px-3 py-2" type="text" name="city" placeholder="City" required>
+        <input class="w-24 border rounded px-3 py-2" type="text" name="state" placeholder="State" required>
+        <input class="w-32 border rounded px-3 py-2" type="text" name="zip_code" placeholder="Zip" required>
+      </div>
+      <label class="block mb-1 font-semibold" for="maps_embed">Google Maps Embed URL</label>
+      <input class="w-full border rounded px-3 py-2" type="text" id="maps_embed" name="maps_embed" placeholder="Paste Google Maps embed URL here">
+      <p class="text-gray-500 text-sm mt-1">Paste the embed URL from Google Maps (e.g., src attribute from the embed code).</p>
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-semibold" for="max_participants">Max Participants</label>
+      <input class="w-full border rounded px-3 py-2" type="number" id="max_participants" name="max_participants" min="1" required>
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-semibold" for="cost">Cost ($)</label>
+      <input class="w-full border rounded px-3 py-2" type="number" id="cost" name="cost" min="0" step="0.01">
+    </div>
+    <div class="mb-4 flex items-center">
+      <input class="mr-2" type="checkbox" id="registration_required" name="registration_required">
+      <label for="registration_required">Registration Required</label>
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-semibold" for="registration_deadline">Registration Deadline</label>
+      <input class="w-full border rounded px-3 py-2" type="date" id="registration_deadline" name="registration_deadline">
+    </div>
+    <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition" type="submit">Create Event</button>
+  </form>
+</div>
+{% endblock %} 

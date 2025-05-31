@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Prerequisites - {{ event.activity_group_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <h1 class="text-3xl font-bold">Manage Prerequisites</h1>
+                    <a href="{{ url_for('events.view_event', event_id=event.id) }}"
+                        class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                        Back to Event
+                    </a>
+                </div>
+
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold mb-4">Current Prerequisites</h2>
+                    {% if prerequisites %}
+                    <div class="space-y-4">
+                        {% for prereq in prerequisites %}
+                        <div class="border rounded p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-medium">{{ prereq.activity_group_name }}</h3>
+                                    <p class="text-gray-600">Date: {{ prereq.date }}</p>
+                                    <p class="text-gray-600">Minimum Performance: {{ prereq.minimum_performance }}</p>
+                                    <p class="text-gray-600">Qualification Period: {{ prereq.qualification_period }} days</p>
+                                    {% if prereq.is_waiver_allowed %}
+                                    <p class="text-green-600">Waiver may be allowed</p>
+                                    {% endif %}
+                                </div>
+                                <form action="{{ url_for('prerequisites.remove_prerequisite', event_id=event.id, prerequisite_id=prereq.id) }}"
+                                    method="POST" class="inline">
+                                    <button type="submit" onclick="return confirm('Are you sure you want to remove this prerequisite?')"
+                                        class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">
+                                        Remove
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-gray-600">No prerequisites have been set for this event.</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <h2 class="text-2xl font-bold mb-4">Add New Prerequisite</h2>
+                    <form method="POST" action="{{ url_for('prerequisites.add_prerequisite', event_id=event.id) }}" class="space-y-6 bg-white p-6 rounded-xl shadow">
+                        <div>
+                            <label for="prereq_type" class="block font-semibold mb-1">Type of Prerequisite</label>
+                            <select name="prereq_type" id="prereq_type" class="w-full border rounded-lg px-3 py-2">
+                                <option value="event">Previous Event</option>
+                                <option value="skill">Skill/Level</option>
+                                <option value="other">Other</option>
+                            </select>
+                            <p class="text-gray-500 text-sm mt-1">Choose what kind of prerequisite this is.</p>
+                        </div>
+                        <div>
+                            <label for="prerequisite_event_id" class="block font-semibold mb-1">Required Event/Activity</label>
+                            <select name="prerequisite_event_id" id="prerequisite_event_id" class="w-full border rounded-lg px-3 py-2">
+                                <option value="">Select an event...</option>
+                                {% for event in available_events %}
+                                <option value="{{ event.id }}">{{ event.activity_group_name }} ({{ event.date }})</option>
+                                {% endfor %}
+                            </select>
+                            <p class="text-gray-500 text-sm mt-1">Select a previous event or activity that must be completed.</p>
+                        </div>
+                        <div>
+                            <label for="required_skill" class="block font-semibold mb-1">Required Skill/Level</label>
+                            <input type="text" name="required_skill" id="required_skill" class="w-full border rounded-lg px-3 py-2" placeholder="e.g. Intermediate, Black Belt, CPR Certified">
+                            <p class="text-gray-500 text-sm mt-1">Specify a skill, level, or certification if applicable.</p>
+                        </div>
+                        <div>
+                            <label for="minimum_performance" class="block font-semibold mb-1">Minimum Performance</label>
+                            <input type="number" name="minimum_performance" id="minimum_performance" class="w-full border rounded-lg px-3 py-2" placeholder="e.g. 80">
+                            <p class="text-gray-500 text-sm mt-1">Enter a minimum score, time, or other measurable performance (if applicable).</p>
+                        </div>
+                        <div>
+                            <label for="qualification_period" class="block font-semibold mb-1">Qualification Period (days)</label>
+                            <input type="number" name="qualification_period" id="qualification_period" class="w-full border rounded-lg px-3 py-2" placeholder="e.g. 30">
+                            <p class="text-gray-500 text-sm mt-1">How long the prerequisite is valid (in days).</p>
+                        </div>
+                        <div>
+                            <label for="notes" class="block font-semibold mb-1">Notes/Description</label>
+                            <textarea name="notes" id="notes" rows="3" class="w-full border rounded-lg px-3 py-2" placeholder="Add any additional information or requirements..."></textarea>
+                            <p class="text-gray-500 text-sm mt-1">Optional: Add any extra details for this prerequisite.</p>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" name="is_waiver_allowed" id="is_waiver_allowed" class="mr-2">
+                            <label for="is_waiver_allowed" class="font-medium">Allow waiver of this prerequisite</label>
+                        </div>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">Add Prerequisite</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

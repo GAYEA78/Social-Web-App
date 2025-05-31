@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Activities{% endblock %}
+
+{% block header %}
+  <h1 class="text-5xl font-extrabold text-center text-blue-800 mb-6 drop-shadow">Boston Activity Hub</h1>
+  <form method="get" action="{{ url_for('main.index') }}" class="max-w-4xl mx-auto mb-8 flex flex-wrap items-center gap-2 bg-white/80 shadow-xl rounded-2xl p-4 glass-card">
+    <input
+      type="text"
+      name="category"
+      value="{{ search_variable }}"
+      placeholder="Search by name or category…"
+      class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/80 shadow-sm"
+    />
+    <input
+      type="date"
+      name="start_date"
+      class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/80 shadow-sm"
+    />
+    <input
+      type="date"
+      name="end_date"
+      class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/80 shadow-sm"
+    />
+    <button
+      type="submit"
+      class="btn-gradient flex items-center gap-2"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+      Search
+    </button>
+  </form>
+{% endblock %}
+
+{% block content %}
+  {% if all_activity_groups %}
+    <div class="grid gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      {% for group in all_activity_groups %}
+        <div class="glass-card shadow-xl p-8 flex flex-col justify-between hover:shadow-2xl transition animate-fadeIn">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2 mb-2">
+              <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 01-8 0m8 0a4 4 0 00-8 0m8 0V5a4 4 0 00-8 0v2m8 0a4 4 0 01-8 0"/></svg>
+              {{ group.name }}
+            </h2>
+            <span class="badge bg-blue-100 text-blue-800 mt-2">{{ group.category }}</span>
+            <p class="mt-4 text-gray-600">{{ group.description }}</p>
+          </div>
+          <div class="mt-6 space-y-2 text-sm text-gray-500">
+            <p class="flex items-center gap-2"><svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><strong>Founded:</strong> {{ group.founding_date }}</p>
+            <p class="flex items-center gap-2"><svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-4a4 4 0 11-8 0 4 4 0 018 0z"/></svg><strong>Members:</strong> {{ group.total_members }}</p>
+            <p class="flex items-center gap-2"><svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 018 0v2M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><strong>Events:</strong> {{ group.event_frequency.value | capitalize }}</p>
+            <p class="flex items-center gap-2"><svg class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 8v8"/></svg><strong>Fee:</strong> {% if group.membership_fee > 0 %} ${{ group.membership_fee }} {% else %} Free {% endif %}</p>
+            <p class="flex items-center gap-2"><svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 14v7m0 0H5a2 2 0 01-2-2v-5a2 2 0 012-2h14a2 2 0 012 2v5a2 2 0 01-2 2h-7z"/></svg><strong>Age:</strong> {{ group.min_age }}+</p>
+            <p class="flex items-center gap-2"><svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><strong>Open to public:</strong> {{ 'Yes' if group.open_to_public else 'No' }}</p>
+          </div>
+          <div class="mt-6 flex flex-wrap gap-4">
+            <a href="{{ group.website }}" target="_blank" class="btn-gradient flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 3v4a1 1 0 001 1h4m-5 4v8a2 2 0 002 2h4a2 2 0 002-2v-8a2 2 0 00-2-2h-4a2 2 0 00-2 2z"/></svg>Website</a>
+            <a href="mailto:{{ group.email }}" class="btn-gradient flex items-center gap-2 bg-green-400 hover:bg-green-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 12H8m8 0a4 4 0 11-8 0 4 4 0 018 0zm0 0v4m0-4V8"/></svg>Email</a>
+            <a href="tel:{{ group.phone_number }}" class="btn-gradient flex items-center gap-2 bg-gray-400 hover:bg-gray-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a2 2 0 011.94 1.515l.516 2.064a2 2 0 01-.45 1.958l-1.27 1.27a16.001 16.001 0 006.586 6.586l1.27-1.27a2 2 0 011.958-.45l2.064.516A2 2 0 0121 18.72V21a2 2 0 01-2 2h-1C7.163 23 1 16.837 1 9V8a2 2 0 012-2z"/></svg>Call</a>
+            <a href="{{ url_for('reviews.list_reviews', name=group.name) }}" class="btn-gradient flex items-center gap-2 bg-purple-400 hover:bg-purple-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V10a2 2 0 012-2h2m10-4H7a2 2 0 00-2 2v0a2 2 0 002 2h10a2 2 0 002-2v0a2 2 0 00-2-2z"/></svg>Reviews</a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-center text-gray-600">No activities found for "<strong>{{ search_variable }}</strong>".</p>
+  {% endif %}
+{% endblock %}
+
+{% block navbar_extra %}
+    <a href="{{ url_for('events.list_events') }}" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded ml-4">Events</a>
+{% endblock %}

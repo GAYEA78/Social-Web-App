@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Edit Your Review for {{ activity_group_name }}</h1>
+        
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <form method="POST">
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-semibold mb-2">Rating</label>
+                    <div class="flex gap-4">
+                        {% for i in range(1, 6) %}
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" 
+                                   name="star_rating" 
+                                   value="{{ i }}" 
+                                   required 
+                                   {% if review.star_rating == i %}checked{% endif %}
+                                   class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <span class="text-gray-700">{{ i }}</span>
+                            <span class="text-yellow-400">★</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label for="content" class="block text-gray-700 font-semibold mb-2">Your Review</label>
+                    <textarea id="content" 
+                              name="content" 
+                              rows="4" 
+                              required 
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ review.content }}</textarea>
+                </div>
+
+                <div class="flex justify-end gap-4">
+                    <a href="{{ url_for('reviews.list_reviews', name=activity_group_name) }}" 
+                       class="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Update Review
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

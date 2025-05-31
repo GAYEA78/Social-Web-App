@@ -1,0 +1,36 @@
+[project]
+name = "project-3"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Arona",email = "gayea@bc.edu"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+
+[tool.poetry]
+package-mode = false
+
+[tool.pylint.messages_control]
+disable = [
+    "missing-module-docstring",
+    "missing-function-docstring",
+]
+
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+line_length = 100
+wrap_length = 100
+multi_line_output = 3
+profile = "black"
+include_trailing_comma = true
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+ignore_missing_imports = true
