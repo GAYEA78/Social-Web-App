@@ -36,7 +36,7 @@ These enhancements improve both user experience and administrative efficiency.
 
 ---
 
-## Quick Start: Deployment Instructions
+## Quick Start: Deployment Instructions (Follow on CMD command prompt terminal)
 
 1. Clone the Repository
 ```bash
