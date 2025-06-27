@@ -220,10 +220,16 @@ def edit_event(event_id):
 
     if request.method == "POST":
         try:
+            date_str = request.form['date']
+            try:
+                parsed_date = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
+            except ValueError:
+                raise Exception("Invalid date format. Please use DD/MM/YYYY.")
+
             Event.update(
                 event_id,
                 activity_group_name=request.form['activity_group_name'],
-                date=request.form['date'],
+                date=parsed_date,
                 max_participants=request.form.get('max_participants'),
                 cost=request.form.get('cost', 0),
                 registration_required='registration_required' in request.form,
