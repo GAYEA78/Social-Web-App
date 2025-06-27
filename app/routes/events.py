@@ -1,3 +1,4 @@
+import datetime
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
@@ -152,6 +153,13 @@ def create_event():
                 location_id = location_result[0]
                 db.commit()
 
+            # Parse event date in DD/MM/YYYY format from the form
+            date_str = request.form['date']
+            try:
+                parsed_date = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
+            except ValueError:
+                raise Exception("Invalid date format. Please use DD/MM/YYYY.")
+
             # Create event
             cursor.execute(
                 """
@@ -162,7 +170,7 @@ def create_event():
                 """,
                 (
                     group_name,
-                    request.form['date'],
+                    parsed_date,
                     request.form.get('max_participants'),
                     request.form.get('cost', 0),
                     'registration_required' in request.form,
@@ -196,6 +204,7 @@ def create_event():
     activity_groups = cursor.fetchall()
     cursor.close()
     return render_template("events/create.html", activity_groups=activity_groups)
+
 
 
 
