@@ -4,6 +4,7 @@ from flask import current_app, g
 from flask_bcrypt import Bcrypt
 from flask_login import UserMixin
 from app.utils.database import get_db
+from psycopg2 import IntegrityError 
 
 bcrypt = Bcrypt()
 
@@ -23,7 +24,7 @@ class User(UserMixin):
     def validate(username, password):
         db = get_db()
         user = db.execute(
-            "SELECT resident_id, username, password_hash, role FROM resident WHERE username = ?",
+            "SELECT resident_id, username, password_hash, role FROM resident WHERE username = $1",
             (username,),
         ).fetchone()
 
@@ -43,7 +44,7 @@ class User(UserMixin):
     def get(user_id):
         db = get_db()
         user = db.execute(
-            "SELECT resident_id, username, password_hash, role FROM resident WHERE resident_id = ?",
+            "SELECT resident_id, username, password_hash, role FROM resident WHERE resident_id = $1",
             (user_id,),
         ).fetchone()
 
@@ -65,12 +66,13 @@ class User(UserMixin):
             cursor = db.cursor()
             cursor.execute(
                 """INSERT INTO resident (username, password_hash, role)
-                   VALUES (?, ?, ?)""",
+                   VALUES ($1, $2, $3)""",
                 (username, hashed_password, role)
             )
             db.commit()
             return cursor.lastrowid
-        except sqlite3.IntegrityError:
+        except IntegrityError:
+            db.rollback()
             return None
 
     def update_password(self, new_password):
@@ -81,8 +83,8 @@ class User(UserMixin):
         hashed_password = bcrypt.generate_password_hash(new_password).decode("utf-8")
         db.execute(
             """UPDATE resident
-               SET password_hash = ?
-               WHERE resident_id = ?""",
+               SET password_hash = $1
+               WHERE resident_id = $2""",
             (hashed_password, self.id),
         )
         db.commit()
@@ -93,7 +95,7 @@ class User(UserMixin):
         db.execute(
             """UPDATE resident
                SET is_deleted = 1
-               WHERE resident_id = ?""",
+               WHERE resident_id = $1""",
             (self.id,),
         )
         db.commit()
