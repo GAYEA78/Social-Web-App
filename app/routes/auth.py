@@ -1,5 +1,6 @@
 import sqlite3
-
+import psycopg2
+import psycopg2.extras
 from flask import Blueprint, current_app, flash, g, redirect, render_template, request, url_for
 from flask_bcrypt import Bcrypt
 from flask_login import current_user, login_required, login_user, logout_user
@@ -12,8 +13,7 @@ bcrypt = Bcrypt()
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(current_app.config["DATABASE"], detect_types=sqlite3.PARSE_DECLTYPES)
-        g.db.row_factory = sqlite3.Row
+        g.db = psycopg2.connect(current_app.config["DATABASE_URL"], cursor_factory=psycopg2.extras.RealDictCursor)
     return g.db
 
 
@@ -70,9 +70,11 @@ def login():
 @login_required
 def profile():
     db = get_db()
-    customer = db.execute(
-        "SELECT * FROM resident WHERE resident_id = ?", [current_user.resident_id]
-    ).fetchone()
+    cur = db.cursor()
+    cur.execute(
+        "SELECT * FROM resident WHERE resident_id = $1", [current_user.resident_id]
+    )
+    customer = cur.fetchone()
 
     return render_template("auth/profile.html", customer=customer)
 
