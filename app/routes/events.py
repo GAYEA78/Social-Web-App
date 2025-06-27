@@ -13,14 +13,7 @@ events_bp = Blueprint("events", __name__)
 maps_manager = MapsManager()
 
 
-def admin_required(f):
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            flash("Admin access required", "error")
-            return redirect(url_for("main.index"))
-        return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
-    return decorated_function
+
 
 
 @events_bp.route("/events")
@@ -29,10 +22,13 @@ def list_events():
     events = Event.get_all(search_query=search_query)
     for event in events:
         db = get_db()
-        count = db.execute(
-            "SELECT COUNT(*) FROM registrations WHERE event_id = ? AND status = 'registered'",
+        cursor = db.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM registrations WHERE event_id = %s AND status = 'registered'",
             (event['id'],)
-        ).fetchone()[0]
+        )
+        count = cursor.fetchone()[0]
+        cursor.close()
         event['registered_count'] = count
         # Attach maps embed URL
         event['maps_embed'] = maps_manager.get_event_map(event['id'])
@@ -53,36 +49,45 @@ def view_event(event_id):
     is_waitlisted = False
     
     if current_user.is_authenticated:
+        db = get_db()
+        cursor = db.cursor()
         # Check registration status
-        registration = get_db().execute(
+        cursor.execute(
             """
             SELECT * FROM registrations
-            WHERE event_id = ? AND user_id = ?
+            WHERE event_id = %s AND user_id = %s
             """,
             (event_id, current_user.id)
-        ).fetchone()
+        )
+        registration = cursor.fetchone()
         
         if registration:
             is_registered = registration['status'] == 'registered'
         else:
             # Check waitlist status
-            waitlist = get_db().execute(
+            cursor.execute(
                 """
                 SELECT * FROM waitlist
-                WHERE event_id = ? AND user_id = ?
+                WHERE event_id = %s AND user_id = %s
                 """,
                 (event_id, current_user.id)
-            ).fetchone()
+            )
+            waitlist = cursor.fetchone()
             is_waitlisted = bool(waitlist)
+        
+        cursor.close()
     
     # Get prerequisites
     prerequisites = Prerequisite.get_prerequisites(event_id)
     
-    return render_template("events/view.html",
-                         event=event,
-                         prerequisites=prerequisites,
-                         is_registered=is_registered,
-                         is_waitlisted=is_waitlisted)
+    return render_template(
+        "events/view.html",
+        event=event,
+        prerequisites=prerequisites,
+        is_registered=is_registered,
+        is_waitlisted=is_waitlisted
+    )
+
 
 
 @events_bp.route("/events/create", methods=["GET", "POST"])
@@ -90,6 +95,7 @@ def view_event(event_id):
 @admin_required
 def create_event():
     db = get_db()
+    cursor = db.cursor()
     if request.method == "POST":
         try:
             # Activity group: use manual entry if provided, else dropdown
@@ -98,16 +104,21 @@ def create_event():
                 raise Exception('Activity group is required')
 
             # Check if activity group exists, if not create it
-            existing_group = db.execute(
-                "SELECT name FROM activity_group WHERE name = ?",
+            cursor.execute(
+                "SELECT name FROM activity_group WHERE name = %s",
                 (group_name,)
-            ).fetchone()
+            )
+            existing_group = cursor.fetchone()
             
             if not existing_group:
-                db.execute(
+                cursor.execute(
                     """
-                    INSERT INTO activity_group (name, category, description, founding_date, website, email, phone_number, social_media_links, is_active, total_members, event_frequency, membership_fee, open_to_public, min_age)
-                    VALUES (?, 'General', 'New activity group', date('now'), '', '', '', '', 1, 0, 'monthly', 0, 1, 18)
+                    INSERT INTO activity_group (
+                        name, category, description, founding_date, website, email,
+                        phone_number, social_media_links, is_active, total_members,
+                        event_frequency, membership_fee, open_to_public, min_age
+                    )
+                    VALUES (%s, 'General', 'New activity group', NOW(), '', '', '', '', TRUE, 0, 'monthly', 0, TRUE, 18)
                     """,
                     (group_name,)
                 )
@@ -119,28 +130,32 @@ def create_event():
             state = request.form['state']
             zip_code = request.form['zip_code']
             
-            location = db.execute(
-                "SELECT id FROM location WHERE address = ? AND city = ? AND state = ? AND zip_code = ?",
+            cursor.execute(
+                """
+                SELECT id FROM location
+                WHERE address = %s AND city = %s AND state = %s AND zip_code = %s
+                """,
                 (address, city, state, zip_code)
-            ).fetchone()
+            )
+            location = cursor.fetchone()
             
             if location:
-                location_id = location['id']
+                location_id = location[0]
             else:
-                cursor = db.execute(
-                    "INSERT INTO location (address, city, state, zip_code) VALUES (?, ?, ?, ?)",
+                cursor.execute(
+                    "INSERT INTO location (address, city, state, zip_code) VALUES (%s, %s, %s, %s) RETURNING id",
                     (address, city, state, zip_code)
                 )
+                location_id = cursor.fetchone()[0]
                 db.commit()
-                location_id = cursor.lastrowid
 
             # Create event
-            cursor = db.execute(
+            cursor.execute(
                 """
                 INSERT INTO event (
                     activity_group_name, date, max_participants, cost,
                     registration_required, registration_deadline, location_id, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
                 """,
                 (
                     group_name,
@@ -153,8 +168,8 @@ def create_event():
                     current_user.id
                 )
             )
+            event_id = cursor.fetchone()[0]
             db.commit()
-            event_id = cursor.lastrowid
 
             # Store maps embed URL if provided
             maps_embed = request.form.get('maps_embed')
@@ -166,9 +181,16 @@ def create_event():
         except Exception as e:
             db.rollback()
             flash(f"Error creating event: {str(e)}", "error")
+        finally:
+            cursor.close()
+
     # GET: fetch activity groups for dropdown
-    activity_groups = db.execute("SELECT name FROM activity_group").fetchall()
+    cursor = db.cursor()
+    cursor.execute("SELECT name FROM activity_group")
+    activity_groups = cursor.fetchall()
+    cursor.close()
     return render_template("events/create.html", activity_groups=activity_groups)
+
 
 
 @events_bp.route("/events/<int:event_id>/edit", methods=["GET", "POST"])
@@ -179,7 +201,7 @@ def edit_event(event_id):
     if not event:
         flash("Event not found", "error")
         return redirect(url_for("events.list_events"))
-    
+
     if request.method == "POST":
         try:
             Event.update(
@@ -204,7 +226,7 @@ def edit_event(event_id):
             return redirect(url_for("events.view_event", event_id=event_id))
         except Exception as e:
             flash(f"Error updating event: {str(e)}", "error")
-    
+
     # Get current maps embed URL
     event['maps_embed'] = maps_manager.get_event_map(event_id)
     return render_template("events/edit.html", event=event)
@@ -219,7 +241,7 @@ def delete_event(event_id):
         flash("Event deleted successfully", "success")
     except Exception as e:
         flash(f"Error deleting event: {str(e)}", "error")
-    
+
     return redirect(url_for("events.list_events"))
 
 
@@ -231,24 +253,24 @@ def register_for_event(event_id):
         meets_prerequisites, unmet_prerequisites = Prerequisite.check_prerequisites(
             current_user.id, event_id
         )
-        
+
         if not meets_prerequisites:
             flash("You do not meet the prerequisites for this event", "error")
             return redirect(url_for("events.view_event", event_id=event_id))
-        
+
         # Register user
         registered = Event.register_user(event_id, current_user.id)
-        
+
         if registered:
             flash("Successfully registered for event", "success")
         else:
             flash("Event is full. You have been added to the waitlist", "info")
-        
+
     except ValueError as e:
         flash(str(e), "error")
     except Exception as e:
         flash(f"Error registering for event: {str(e)}", "error")
-    
+
     return redirect(url_for("events.view_event", event_id=event_id))
 
 
@@ -260,7 +282,7 @@ def cancel_registration(event_id):
         flash("Registration cancelled successfully", "success")
     except Exception as e:
         flash(f"Error cancelling registration: {str(e)}", "error")
-    
+
     return redirect(url_for("events.view_event", event_id=event_id))
 
 
@@ -269,26 +291,29 @@ def cancel_registration(event_id):
 @admin_required
 def notify_waitlist(event_id):
     try:
-        # Get next person on waitlist
-        waitlisted = get_db().execute(
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
             """
             SELECT w.*, u.email
             FROM waitlist w
             JOIN resident u ON w.user_id = u.resident_id
-            WHERE w.event_id = ?
+            WHERE w.event_id = %s
             ORDER BY w.created_at ASC
             LIMIT 1
             """,
-            (event_id,)
-        ).fetchone()
-        
+            (event_id,),
+        )
+        waitlisted = cursor.fetchone()
+        cursor.close()
+
         if waitlisted:
-            # TODO: Send email notification
+            # TODO: Send email notification here.
             flash("Notification sent to next person on waitlist", "success")
         else:
             flash("No one is on the waitlist", "info")
-        
+
     except Exception as e:
         flash(f"Error notifying waitlist: {str(e)}", "error")
-    
+
     return redirect(url_for("events.view_event", event_id=event_id))
