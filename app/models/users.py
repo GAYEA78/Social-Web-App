@@ -1,13 +1,9 @@
-import sqlite3
-
-from flask import current_app, g
 from flask_bcrypt import Bcrypt
 from flask_login import UserMixin
 from app.utils.database import get_db
 from psycopg2 import IntegrityError 
 
 bcrypt = Bcrypt()
-
 
 class User(UserMixin):
     def __init__(self, resident_id, username, hashed_password, role='user'):
@@ -23,10 +19,12 @@ class User(UserMixin):
     @staticmethod
     def validate(username, password):
         db = get_db()
-        user = db.execute(
-            "SELECT resident_id, username, password_hash, role FROM resident WHERE username = $1",
+        cursor = db.cursor()
+        cursor.execute(
+            "SELECT resident_id, username, password_hash, role FROM resident WHERE username = %s",
             (username,),
-        ).fetchone()
+        )
+        user = cursor.fetchone()
 
         if user is None:
             return None
@@ -43,10 +41,12 @@ class User(UserMixin):
     @staticmethod
     def get(user_id):
         db = get_db()
-        user = db.execute(
-            "SELECT resident_id, username, password_hash, role FROM resident WHERE resident_id = $1",
+        cursor = db.cursor()
+        cursor.execute(
+            "SELECT resident_id, username, password_hash, role FROM resident WHERE resident_id = %s",
             (user_id,),
-        ).fetchone()
+        )
+        user = cursor.fetchone()
 
         if user is None:
             return None
@@ -66,7 +66,7 @@ class User(UserMixin):
             cursor = db.cursor()
             cursor.execute(
                 """INSERT INTO resident (username, password_hash, role)
-                   VALUES ($1, $2, $3)""",
+                   VALUES (%s, %s, %s)""",
                 (username, hashed_password, role)
             )
             db.commit()
@@ -76,26 +76,26 @@ class User(UserMixin):
             return None
 
     def update_password(self, new_password):
-        """Update the user's password."""
         if not new_password:
             raise ValueError("Password cannot be empty")
         db = get_db()
+        cursor = db.cursor()
         hashed_password = bcrypt.generate_password_hash(new_password).decode("utf-8")
-        db.execute(
+        cursor.execute(
             """UPDATE resident
-               SET password_hash = $1
-               WHERE resident_id = $2""",
+               SET password_hash = %s
+               WHERE resident_id = %s""",
             (hashed_password, self.id),
         )
         db.commit()
 
     def soft_delete(self):
-        """Mark the user as deleted instead of hard deleting."""
         db = get_db()
-        db.execute(
+        cursor = db.cursor()
+        cursor.execute(
             """UPDATE resident
                SET is_deleted = 1
-               WHERE resident_id = $1""",
+               WHERE resident_id = %s""",
             (self.id,),
         )
         db.commit()
