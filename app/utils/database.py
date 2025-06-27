@@ -1,7 +1,9 @@
-import sqlite3
+import os
+import psycopg2
 import click
 from flask import current_app, g
 from flask.cli import with_appcontext
+from psycopg2.extras import RealDictCursor
 
 from app.utils.logger import setup_logger
 
@@ -10,17 +12,15 @@ log = setup_logger(__name__)
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(current_app.config["DATABASE"], detect_types=sqlite3.PARSE_DECLTYPES)
-        g.db.row_factory = sqlite3.Row
-        # Enable foreign key constraints
-        g.db.execute("PRAGMA foreign_keys = ON")
-
+        database_url = os.environ.get("DATABASE_URL")
+        if not database_url:
+            raise ValueError("DATABASE_URL environment variable is not set!")
+        g.db = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
     return g.db
 
 
 def close_db(e=None):
     db = g.pop("db", None)
-
     if db is not None:
         db.close()
 
@@ -29,10 +29,17 @@ def check_db_health():
     """Check if the database is accessible and has the correct schema."""
     try:
         db = get_db()
+        cur = db.cursor()
+
         # Check if essential tables exist
-        tables = db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        cur.execute("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema='public'
+        """)
+        tables = [row["table_name"] for row in cur.fetchall()]
         required_tables = {"resident", "activity_group", "event", "review"}
-        existing_tables = {table["name"] for table in tables}
+        existing_tables = set(tables)
 
         missing_tables = required_tables - existing_tables
         if missing_tables:
@@ -40,9 +47,8 @@ def check_db_health():
             return False
 
         # Check if test user exists
-        test_user = db.execute(
-            "SELECT resident_id FROM resident WHERE username = 'testuser'"
-        ).fetchone()
+        cur.execute("SELECT resident_id FROM resident WHERE username = 'testuser'")
+        test_user = cur.fetchone()
         if not test_user:
             log.warning("Test user not found in database")
             return False
@@ -56,8 +62,11 @@ def check_db_health():
 def init_db(app):
     with app.app_context():
         db = get_db()
+        cur = db.cursor()
         with current_app.open_resource('utils/schema.sql') as f:
-            db.executescript(f.read().decode('utf8'))
+            schema_sql = f.read().decode('utf8')
+            cur.execute(schema_sql)
+        db.commit()
 
 
 @click.command('init-db')
