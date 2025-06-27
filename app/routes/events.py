@@ -146,7 +146,10 @@ def create_event():
                     "INSERT INTO location (address, city, state, zip_code) VALUES (%s, %s, %s, %s) RETURNING id",
                     (address, city, state, zip_code)
                 )
-                location_id = cursor.fetchone()[0]
+                location_result = cursor.fetchone()
+                if location_result is None:
+                    raise Exception("Failed to insert location and retrieve ID.")
+                location_id = location_result[0]
                 db.commit()
 
             # Create event
@@ -168,7 +171,10 @@ def create_event():
                     current_user.id
                 )
             )
-            event_id = cursor.fetchone()[0]
+            event_result = cursor.fetchone()
+            if event_result is None:
+                raise Exception("Failed to insert event and retrieve ID.")
+            event_id = event_result[0]
             db.commit()
 
             # Store maps embed URL if provided
@@ -190,6 +196,7 @@ def create_event():
     activity_groups = cursor.fetchall()
     cursor.close()
     return render_template("events/create.html", activity_groups=activity_groups)
+
 
 
 
