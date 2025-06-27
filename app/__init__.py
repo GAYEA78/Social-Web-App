@@ -51,20 +51,25 @@ def create_app(test_config=None):
     # Create admin user if it doesn't exist
     with app.app_context():
         db = get_db()
-        admin = db.execute(
+        cur = db.cursor()
+
+        cur.execute(
             "SELECT * FROM resident WHERE role = 'admin'"
-        ).fetchone()
+        )
+        admin = cur.fetchone()
         
         if not admin:
             from werkzeug.security import generate_password_hash
-            db.execute(
+            cur.execute(
                 """
                 INSERT INTO resident (username, email, password_hash, role)
-                VALUES (?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s)
                 """,
                 ('admin', 'admin@example.com', generate_password_hash('admin'), 'admin')
             )
             db.commit()
+        
+        cur.close()
 
     app.teardown_appcontext(close_db)
     
