@@ -25,40 +25,49 @@ class Event:
                location_id=None, created_by=None):
         """Create a new event."""
         db = get_db()
-        db.execute(
+        cursor = db.cursor()
+        cursor.execute(
             """
             INSERT INTO event (
                 activity_group_name, date, max_participants, cost,
                 registration_required, registration_deadline,
                 location_id, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (activity_group_name, date, max_participants, cost,
-             registration_required, registration_deadline,
-             location_id, created_by)
+            (
+                activity_group_name, date, max_participants, cost,
+                registration_required, registration_deadline,
+                location_id, created_by
+            )
         )
         db.commit()
-
+        cursor.close()
+                   
     @staticmethod
     def get(event_id):
         """Get an event by ID."""
         db = get_db()
-        event = db.execute(
+        cursor = db.cursor()
+        cursor.execute(
             """
             SELECT e.*, l.address, l.city, l.state, l.zip_code
             FROM event e
             LEFT JOIN location l ON e.location_id = l.id
-            WHERE e.id = ?
+            WHERE e.id = %s
             """,
             (event_id,)
-        ).fetchone()
+        )
+        event = cursor.fetchone()
+        cursor.close()
         
         return dict(event) if event else None
+
 
     @staticmethod
     def get_all(search_query=None, exclude_event_id=None):
         """Get all events, optionally filtered by search query."""
         db = get_db()
+        cursor = db.cursor()
         query = """
             SELECT e.*, l.address, l.city, l.state, l.zip_code
             FROM event e
@@ -70,27 +79,32 @@ class Event:
         if search_query:
             query += """
                 AND (
-                    e.activity_group_name LIKE ?
-                    OR l.address LIKE ?
-                    OR l.city LIKE ?
+                    e.activity_group_name ILIKE %s
+                    OR l.address ILIKE %s
+                    OR l.city ILIKE %s
                 )
             """
             search_term = f"%{search_query}%"
             params.extend([search_term, search_term, search_term])
         
         if exclude_event_id:
-            query += " AND e.id != ?"
+            query += " AND e.id != %s"
             params.append(exclude_event_id)
         
         query += " ORDER BY e.date DESC"
         
-        events = db.execute(query, params).fetchall()
+        cursor.execute(query, params)
+        events = cursor.fetchall()
+        cursor.close()
+        
         return [dict(event) for event in events]
+
 
     @staticmethod
     def update(event_id, **kwargs):
         """Update an event's details."""
         db = get_db()
+        cursor = db.cursor()
         allowed_fields = {
             'activity_group_name', 'date', 'max_participants', 'cost',
             'registration_required', 'registration_deadline', 'location_id'
@@ -100,182 +114,222 @@ class Event:
         if not updates:
             return
         
-        set_clause = ', '.join(f"{k} = ?" for k in updates.keys())
-        query = f"UPDATE event SET {set_clause} WHERE id = ?"
+        set_clause = ', '.join(f"{k} = %s" for k in updates.keys())
+        query = f"UPDATE event SET {set_clause} WHERE id = %s"
         
-        db.execute(query, list(updates.values()) + [event_id])
+        params = list(updates.values()) + [event_id]
+        cursor.execute(query, params)
         db.commit()
+        cursor.close()
+
 
     @staticmethod
     def delete(event_id):
         """Delete an event and its related records."""
         db = get_db()
+        cursor = db.cursor()
+
         # Delete prerequisites
-        db.execute("DELETE FROM prerequisite WHERE event_id = ?", (event_id,))
-        db.execute("DELETE FROM prerequisite WHERE prerequisite_event_id = ?", (event_id,))
+        cursor.execute("DELETE FROM prerequisite WHERE event_id = %s", (event_id,))
+        cursor.execute("DELETE FROM prerequisite WHERE prerequisite_event_id = %s", (event_id,))
         
         # Delete registrations and waitlist
-        db.execute("DELETE FROM registrations WHERE event_id = ?", (event_id,))
-        db.execute("DELETE FROM waitlist WHERE event_id = ?", (event_id,))
+        cursor.execute("DELETE FROM registrations WHERE event_id = %s", (event_id,))
+        cursor.execute("DELETE FROM waitlist WHERE event_id = %s", (event_id,))
         
         # Delete sessions
-        db.execute("DELETE FROM session WHERE event_id = ?", (event_id,))
+        cursor.execute("DELETE FROM session WHERE event_id = %s", (event_id,))
         
-        # Delete the event
-        db.execute("DELETE FROM event WHERE id = ?", (event_id,))
+        # Delete the event itself
+        cursor.execute("DELETE FROM event WHERE id = %s", (event_id,))
+        
         db.commit()
+        cursor.close()
+
 
     @staticmethod
     def get_registered_users(event_id):
         """Get all users registered for an event."""
         db = get_db()
-        users = db.execute(
+        cursor = db.cursor()
+        cursor.execute(
             """
             SELECT r.*, u.username, u.email
             FROM registrations r
-            JOIN resident u ON r.user_id = u.id
-            WHERE r.event_id = ? AND r.status = 'registered'
+            JOIN resident u ON r.user_id = u.resident_id
+            WHERE r.event_id = %s AND r.status = 'registered'
             """,
             (event_id,)
-        ).fetchall()
-        
+        )
+        users = cursor.fetchall()
+        cursor.close()
         return [dict(user) for user in users]
+
 
     @staticmethod
     def get_waitlisted_users(event_id):
         """Get all users on the waitlist for an event."""
         db = get_db()
-        users = db.execute(
+        cursor = db.cursor()
+        cursor.execute(
             """
             SELECT w.*, u.username, u.email
             FROM waitlist w
-            JOIN resident u ON w.user_id = u.id
-            WHERE w.event_id = ?
+            JOIN resident u ON w.user_id = u.resident_id
+            WHERE w.event_id = %s
             ORDER BY w.created_at ASC
             """,
             (event_id,)
-        ).fetchall()
-        
+        )
+        users = cursor.fetchall()
+        cursor.close()
         return [dict(user) for user in users]
+
 
     @staticmethod
     def register_user(event_id, user_id):
         """Register a user for an event."""
         db = get_db()
+        cursor = db.cursor()
+
         event = Event.get(event_id)
         if not event:
+            cursor.close()
             raise ValueError("Event not found")
-        
+
         # Check if user is already registered
-        existing = db.execute(
-            "SELECT * FROM registrations WHERE event_id = ? AND user_id = ?",
+        cursor.execute(
+            "SELECT * FROM registrations WHERE event_id = %s AND user_id = %s",
             (event_id, user_id)
-        ).fetchone()
-        
+        )
+        existing = cursor.fetchone()
+
         if existing:
+            cursor.close()
             raise ValueError("User is already registered for this event")
-        
+
         # Check if event is full
         if event['max_participants']:
-            registered_count = db.execute(
+            cursor.execute(
                 """
-                SELECT COUNT(*) as count
+                SELECT COUNT(*) AS count
                 FROM registrations
-                WHERE event_id = ? AND status = 'registered'
+                WHERE event_id = %s AND status = 'registered'
                 """,
                 (event_id,)
-            ).fetchone()['count']
-            
+            )
+            registered_count = cursor.fetchone()['count']
+
             if registered_count >= event['max_participants']:
                 # Add to waitlist
-                db.execute(
+                cursor.execute(
                     """
                     INSERT INTO waitlist (event_id, user_id)
-                    VALUES (?, ?)
+                    VALUES (%s, %s)
                     """,
                     (event_id, user_id)
                 )
                 db.commit()
+                cursor.close()
                 return False  # Added to waitlist
-        
+
         # Register user
-        db.execute(
+        cursor.execute(
             """
             INSERT INTO registrations (event_id, user_id, status)
-            VALUES (?, ?, 'registered')
+            VALUES (%s, %s, 'registered')
             """,
             (event_id, user_id)
         )
         db.commit()
+        cursor.close()
         return True  # Successfully registered
+
 
     @staticmethod
     def cancel_registration(event_id, user_id):
         """Cancel a user's registration for an event."""
         db = get_db()
+        cursor = db.cursor()
+
         # Remove registration
-        db.execute(
+        cursor.execute(
             """
             DELETE FROM registrations
-            WHERE event_id = ? AND user_id = ?
+            WHERE event_id = %s AND user_id = %s
             """,
             (event_id, user_id)
         )
-        
+
         # Check if there are waitlisted users
-        waitlisted = db.execute(
+        cursor.execute(
             """
             SELECT * FROM waitlist
-            WHERE event_id = ?
+            WHERE event_id = %s
             ORDER BY created_at ASC
             LIMIT 1
             """,
             (event_id,)
-        ).fetchone()
-        
+        )
+        waitlisted = cursor.fetchone()
+
         if waitlisted:
             # Register the first waitlisted user
-            db.execute(
+            cursor.execute(
                 """
                 INSERT INTO registrations (event_id, user_id, status)
-                VALUES (?, ?, 'registered')
+                VALUES (%s, %s, 'registered')
                 """,
                 (event_id, waitlisted['user_id'])
             )
-            
+
             # Remove from waitlist
-            db.execute(
+            cursor.execute(
                 """
                 DELETE FROM waitlist
-                WHERE event_id = ? AND user_id = ?
+                WHERE event_id = %s AND user_id = %s
                 """,
                 (event_id, waitlisted['user_id'])
             )
-        
+
         db.commit()
+        cursor.close()
+
 
     @staticmethod
     def get_prerequisites(event_id):
+        """Retrieve prerequisites for a given event."""
         db = get_db()
-        prerequisites = db.execute(
-            """SELECT p.*, e.activity_group_name, e.date
-               FROM prerequisite p
-               JOIN event e ON p.prerequisite_event_id = e.event_id
-               WHERE p.event_id = ?""",
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT p.*, e.activity_group_name, e.date
+            FROM prerequisite p
+            JOIN event e ON p.prerequisite_event_id = e.id
+            WHERE p.event_id = %s
+            """,
             (event_id,),
-        ).fetchall()
-        return prerequisites
+        )
+        prerequisites = cursor.fetchall()
+        cursor.close()
+        return [dict(row) for row in prerequisites]
+
 
     def update(self):
+        """Update this event instance in the database."""
         if self.max_participants < 0 or self.cost < 0:
             raise ValueError("Max participants and cost must be non-negative")
+
         db = get_db()
-        db.execute(
-            """UPDATE event
-               SET activity_group_name = ?, date = ?, location_id = ?,
-                   max_participants = ?, cost = ?, registration_required = ?,
-                   registration_deadline = ?
-               WHERE event_id = ?""",
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            UPDATE event
+            SET activity_group_name = %s, date = %s, location_id = %s,
+                max_participants = %s, cost = %s, registration_required = %s,
+                registration_deadline = %s
+            WHERE id = %s
+            """,
             (
                 self.activity_group_name,
                 self.date,
@@ -288,167 +342,244 @@ class Event:
             ),
         )
         db.commit()
+        cursor.close()
+
 
     def delete(self):
+        """Delete this event instance and related records from the database."""
         db = get_db()
-        # First delete all prerequisites
-        db.execute("DELETE FROM prerequisite WHERE event_id = ?", (self.id,))
-        db.execute("DELETE FROM prerequisite WHERE prerequisite_event_id = ?", (self.id,))
-        # Then delete the event
-        db.execute("DELETE FROM event WHERE event_id = ?", (self.id,))
+        cursor = db.cursor()
+
+        # First delete all prerequisites where this event is either the main event or a prerequisite
+        cursor.execute("DELETE FROM prerequisite WHERE event_id = %s", (self.id,))
+        cursor.execute("DELETE FROM prerequisite WHERE prerequisite_event_id = %s", (self.id,))
+
+        # Delete the event itself
+        cursor.execute("DELETE FROM event WHERE id = %s", (self.id,))
+
         db.commit()
+        cursor.close()
+
 
     @staticmethod
     def event_registration(event_id, user_id):
+        """Register a user for an event, or add them to the waitlist if full."""
         db = get_db()
-        event = db.execute(
-            """SELECT max_participants, 
-                      (SELECT count(*) FROM registrations WHERE event_id = ?) AS current_participants
-               FROM events WHERE id = ?""",
+        cursor = db.cursor()
+
+        # Fetch event capacity and current number of registrations
+        cursor.execute(
+            """
+            SELECT max_participants,
+                   (SELECT COUNT(*) FROM registrations WHERE event_id = %s) AS current_participants
+            FROM event WHERE id = %s
+            """,
             (event_id, event_id),
-        ).fetchone()
+        )
+        event = cursor.fetchone()
 
         if not event:
+            cursor.close()
             return {"success": False, "message": "Event not found"}
 
         if event["current_participants"] < event["max_participants"]:
-            db.execute(
-                """INSERT INTO registrations (event_id, user_id)
-                   VALUES (?, ?)""",
+            # Event has space - register the user
+            cursor.execute(
+                """
+                INSERT INTO registrations (event_id, user_id)
+                VALUES (%s, %s)
+                """,
                 (event_id, user_id),
             )
             db.commit()
+            cursor.close()
             return {"success": True, "message": "Successfully registered for the event"}
 
         # Check if the user is already on the waitlist
-        if Event.get_waitlist(user_id, event_id):
+        waitlist = Event.get_waitlist(user_id, event_id)
+        if waitlist:
+            cursor.close()
             return {"success": False, "message": "User is already on the waitlist"}
 
         # Add the user to the waitlist
-        db.execute(
-            """INSERT INTO waitlist (event_id, user_id)
-               VALUES (?, ?)""",
+        cursor.execute(
+            """
+            INSERT INTO waitlist (event_id, user_id)
+            VALUES (%s, %s)
+            """,
             (event_id, user_id),
         )
         db.commit()
+        cursor.close()
         return {"success": True, "message": "Event is full. Added to the waitlist"}
+
 
     def soft_delete(self):
         """Mark the event as deleted instead of hard deleting."""
         db = get_db()
-        db.execute(
-            """UPDATE events
-               SET is_deleted = 1
-               WHERE id = ?""",
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            UPDATE event
+            SET is_deleted = TRUE
+            WHERE id = %s
+            """,
             (self.id,),
         )
         db.commit()
+        cursor.close()
+
 
     @staticmethod
     def notify_waitlist(event_id):
         db = get_db()
-        waitlist_user = db.execute(
-            """SELECT w.id, w.user_id, r.email
-               FROM waitlist w
-               JOIN resident r ON w.user_id = r.resident_id
-               WHERE w.event_id = ? AND w.status = 'waiting'
-               ORDER BY w.added_at ASC
-               LIMIT 1""",
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT w.id, w.user_id, r.email
+            FROM waitlist w
+            JOIN resident r ON w.user_id = r.resident_id
+            WHERE w.event_id = %s AND w.status = 'waiting'
+            ORDER BY w.added_at ASC
+            LIMIT 1
+            """,
             (event_id,),
-        ).fetchone()
+        )
+        waitlist_user = cursor.fetchone()
 
         if not waitlist_user:
+            cursor.close()
             return {"success": False, "message": "No users on the waitlist"}
 
         # Simulate sending a notification
         print(f"Notifying user {waitlist_user['email']} about an open spot in event {event_id}")
 
         # Update waitlist status to 'notified'
-        db.execute(
-            """UPDATE waitlist
-               SET status = 'notified'
-               WHERE id = ?""",
+        cursor.execute(
+            """
+            UPDATE waitlist
+            SET status = 'notified'
+            WHERE id = %s
+            """,
             (waitlist_user["id"],),
         )
         db.commit()
-        return {"success": True, "message": "User notified", "email": waitlist_user["email"]}
+        cursor.close()
+        return {
+            "success": True,
+            "message": "User notified",
+            "email": waitlist_user["email"],
+        }
+
 
     @staticmethod
     def confirm_waitlist(event_id, user_id):
         db = get_db()
-        waitlist_entry = db.execute(
-            """SELECT * FROM waitlist
-               WHERE event_id = ? AND user_id = ? AND status = 'notified'""",
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM waitlist
+            WHERE event_id = %s AND user_id = %s AND status = 'notified'
+            """,
             (event_id, user_id),
-        ).fetchone()
+        )
+        waitlist_entry = cursor.fetchone()
 
         if not waitlist_entry:
+            cursor.close()
             return {"success": False, "message": "No notification found for this user"}
 
         # Register the user
-        db.execute(
-            """INSERT INTO registrations (event_id, user_id)
-               VALUES (?, ?)""",
+        cursor.execute(
+            """
+            INSERT INTO registrations (event_id, user_id)
+            VALUES (%s, %s)
+            """,
             (event_id, user_id),
         )
-        db.commit()
 
         # Remove the user from the waitlist
-        db.execute(
-            """DELETE FROM waitlist
-               WHERE id = ?""",
+        cursor.execute(
+            """
+            DELETE FROM waitlist
+            WHERE id = %s
+            """,
             (waitlist_entry["id"],),
         )
         db.commit()
+        cursor.close()
         return {"success": True, "message": "Waitlist spot confirmed and registered"}
+
 
     @staticmethod
     def event_notification():
         db = get_db()
-        events = db.execute(
-            """SELECT e.id, e.activity_group_name, e.date, u.email
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT e.id, e.activity_group_name, e.date, u.email
             FROM event e
             JOIN registrations r ON r.event_id = e.id 
-            JOIN users u ON r.user_id = u.id
-            WHERE e.date BETWEEN datetime('now') AND datetime('now', '+1 day')"""
-        ).fetchall()
+            JOIN resident u ON r.user_id = u.resident_id
+            WHERE e.date BETWEEN NOW() AND NOW() + INTERVAL '1 day'
+            """
+        )
+        events = cursor.fetchall()
 
         for event in events:
             print(
                 f"Sending notification to {event['email']} for event {event['activity_group_name']}"
             )
+        
+        cursor.close()
+
 
     @staticmethod
     def search_events(search_term, date, location):
         db = get_db()
-        query = """SELECT e.id, e.activity_group_name, e.date, e.location_id
-                FROM event e
-                LEFT JOIN locations l on e.location_id = l.id
-                WHERE 1=1"""
+        cursor = db.cursor()
+        query = """
+            SELECT e.id, e.activity_group_name, e.date, e.location_id
+            FROM event e
+            LEFT JOIN location l ON e.location_id = l.id
+            WHERE 1=1
+        """
         params = []
+
         if search_term:
-            query += " AND e.activity_group_name LIKE ?"
+            query += " AND e.activity_group_name ILIKE %s"
             params.append(f"%{search_term}%")
         if date:
-            query += " AND e.date = ?"
+            query += " AND e.date = %s"
             params.append(date)
         if location:
             query += (
-                " AND (l.address LIKE ? OR l.city LIKE ? OR l.state LIKE ? OR l.zip_code LIKE ?)"
+                " AND (l.address ILIKE %s OR l.city ILIKE %s OR l.state ILIKE %s OR l.zip_code ILIKE %s)"
             )
             params.extend([f"%{location}%", f"%{location}%", f"%{location}%", f"%{location}%"])
+
         query += " ORDER BY e.date DESC"
-        return db.execute(query, params).fetchall()
+        cursor.execute(query, params)
+        events = cursor.fetchall()
+        cursor.close()
+        return events
+
 
     @staticmethod
     def get_waitlist(user_id, event_id):
         db = get_db()
-        waitlist = db.execute(
-            """SELECT w.id, w.event_id, w.user_id
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT w.id, w.event_id, w.user_id
             FROM waitlist w
-            JOIN events e ON e.id = w.event_id
-            JOIN users u ON u.id = w.user_id
-            WHERE w.event_id = ? AND w.user_id = ?""",
+            JOIN event e ON e.id = w.event_id
+            JOIN resident u ON u.resident_id = w.user_id
+            WHERE w.event_id = %s AND w.user_id = %s
+            """,
             (event_id, user_id),
-        ).fetchall()
+        )
+        waitlist = cursor.fetchall()
+        cursor.close()
         return waitlist
+
