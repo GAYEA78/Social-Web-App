@@ -1,6 +1,6 @@
 import os
 import secrets
-
+import psycopg2
 from dotenv import load_dotenv
 from flask import Flask
 from flask_login import LoginManager
@@ -48,28 +48,31 @@ def create_app(test_config=None):
     def load_user(user_id):
         return User.get(user_id)
 
-    # Create admin user if it doesn't exist
+    # Create admin user INSIDE create_app()
     with app.app_context():
         db = get_db()
         cur = db.cursor()
-
-        cur.execute(
-            "SELECT * FROM resident WHERE role = 'admin'"
-        )
-        admin = cur.fetchone()
-        
-        if not admin:
-            from werkzeug.security import generate_password_hash
+        try:
             cur.execute(
-                """
-                INSERT INTO resident (username, email, password_hash, role)
-                VALUES (%s, %s, %s, %s)
-                """,
-                ('admin', 'admin@example.com', generate_password_hash('admin'), 'admin')
+                "SELECT * FROM resident WHERE role = 'admin'"
             )
-            db.commit()
-        
-        cur.close()
+            admin = cur.fetchone()
+            
+            if not admin:
+                from werkzeug.security import generate_password_hash
+                cur.execute(
+                    """
+                    INSERT INTO resident (username, email, password_hash, role)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    ('admin', 'admin@example.com', generate_password_hash('admin'), 'admin')
+                )
+                db.commit()
+
+        except psycopg2.errors.UndefinedTable:
+            log.error("Table 'resident' does not exist. Did the database schema fail to initialize?")
+        finally:
+            cur.close()
 
     app.teardown_appcontext(close_db)
     
