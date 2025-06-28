@@ -1,6 +1,5 @@
 from app.utils.database import get_db
 
-
 class Prerequisite:
     def __init__(
         self,
@@ -17,120 +16,129 @@ class Prerequisite:
         self.is_waiver_allowed = is_waiver_allowed
 
     @staticmethod
-    def create(
-        event_id,
-        prerequisite_event_id,
-        minimum_performance,
-        qualification_period,
-        is_waiver_allowed,
-    ):
-        """Create a new prerequisite."""
+    def create(event_id, prerequisite_event_id, minimum_performance, qualification_period, is_waiver_allowed):
         db = get_db()
+        cursor = db.cursor()
+
         if event_id == prerequisite_event_id:
             raise ValueError("An event cannot be its own prerequisite")
         
         # Check if prerequisite already exists
-        existing = db.execute(
-            "SELECT * FROM prerequisite WHERE event_id = ? AND prerequisite_event_id = ?",
+        cursor.execute(
+            "SELECT * FROM prerequisite WHERE event_id = %s AND prerequisite_event_id = %s",
             (event_id, prerequisite_event_id)
-        ).fetchone()
+        )
+        existing = cursor.fetchone()
         
         if existing:
+            cursor.close()
             raise ValueError("This prerequisite already exists")
         
         # Insert new prerequisite
-        db.execute(
+        cursor.execute(
             """
             INSERT INTO prerequisite (
                 event_id, prerequisite_event_id, minimum_performance,
                 qualification_period, is_waiver_allowed
-            ) VALUES (?, ?, ?, ?, ?)
+            ) VALUES (%s, %s, %s, %s, %s)
             """,
-            (event_id, prerequisite_event_id, minimum_performance,
-             qualification_period, is_waiver_allowed)
+            (event_id, prerequisite_event_id, minimum_performance, qualification_period, is_waiver_allowed)
         )
         db.commit()
+        cursor.close()
 
     @staticmethod
     def remove(prerequisite_id):
-        """Remove a prerequisite by its ID."""
         db = get_db()
-        db.execute(
-            "DELETE FROM prerequisite WHERE id = ?",
+        cursor = db.cursor()
+        cursor.execute(
+            "DELETE FROM prerequisite WHERE id = %s",
             (prerequisite_id,)
         )
         db.commit()
+        cursor.close()
 
     @staticmethod
     def get_prerequisites(event_id):
-        """Get all prerequisites for an event."""
         db = get_db()
-        prerequisites = db.execute(
+        cursor = db.cursor()
+        cursor.execute(
             """
             SELECT p.*, e.activity_group_name, e.date
             FROM prerequisite p
             JOIN event e ON p.prerequisite_event_id = e.id
-            WHERE p.event_id = ?
+            WHERE p.event_id = %s
             """,
             (event_id,)
-        ).fetchall()
-        
+        )
+        prerequisites = cursor.fetchall()
+        cursor.close()
         return [dict(prereq) for prereq in prerequisites]
 
     @staticmethod
     def check_prerequisites(user_id, event_id):
-        """Check if a user meets all prerequisites for an event."""
         db = get_db()
-        prerequisites = db.execute(
+        cursor = db.cursor()
+
+        cursor.execute(
             """
             SELECT p.*, e.activity_group_name, e.date
             FROM prerequisite p
             JOIN event e ON p.prerequisite_event_id = e.id
-            WHERE p.event_id = ?
+            WHERE p.event_id = %s
             """,
             (event_id,)
-        ).fetchall()
-        
+        )
+        prerequisites = cursor.fetchall()
+
         if not prerequisites:
-            return True, []  # No prerequisites required
-        
+            cursor.close()
+            return True, []
+
         unmet_prerequisites = []
         for prereq in prerequisites:
-            # Check if user has completed the prerequisite event
-            registration = db.execute(
+            cursor.execute(
                 """
                 SELECT r.*, s.attendance
                 FROM registrations r
                 JOIN session s ON r.event_id = s.event_id
-                WHERE r.user_id = ? AND r.event_id = ?
+                WHERE r.user_id = %s AND r.event_id = %s
                 AND r.status = 'completed'
-                AND s.attendance >= ?
-                AND s.date >= date('now', ? || ' days')
+                AND s.attendance >= %s
+                AND s.date >= CURRENT_DATE - INTERVAL '%s days'
                 """,
-                (user_id, prereq['prerequisite_event_id'],
-                 prereq['minimum_performance'],
-                 f"-{prereq['qualification_period']}")
-            ).fetchone()
-            
+                (
+                    user_id,
+                    prereq['prerequisite_event_id'],
+                    prereq['minimum_performance'],
+                    prereq['qualification_period'],
+                )
+            )
+            registration = cursor.fetchone()
             if not registration:
                 unmet_prerequisites.append({
                     'event_name': prereq['activity_group_name'],
                     'date': prereq['date'],
                     'minimum_performance': prereq['minimum_performance'],
                     'qualification_period': prereq['qualification_period'],
-                    'is_waiver_allowed': prereq['is_waiver_allowed']
+                    'is_waiver_allowed': prereq['is_waiver_allowed'],
                 })
-        
+        cursor.close()
         return len(unmet_prerequisites) == 0, unmet_prerequisites
 
     @staticmethod
     def get_dependent_events(prerequisite_event_id):
         db = get_db()
-        dependent_events = db.execute(
-            """SELECT p.*, e.activity_group_name, e.date
-               FROM prerequisite p
-               JOIN event e ON p.event_id = e.event_id
-               WHERE p.prerequisite_event_id = ?""",
-            (prerequisite_event_id,),
-        ).fetchall()
-        return dependent_events
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT p.*, e.activity_group_name, e.date
+            FROM prerequisite p
+            JOIN event e ON p.event_id = e.id
+            WHERE p.prerequisite_event_id = %s
+            """,
+            (prerequisite_event_id,)
+        )
+        dependent_events = cursor.fetchall()
+        cursor.close()
+        return [dict(dep) for dep in dependent_events]

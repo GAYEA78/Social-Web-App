@@ -21,6 +21,8 @@ maps_manager = MapsManager()
 def list_events():
     search_query = request.args.get("q", "").strip()
     events = Event.get_all(search_query=search_query)
+    print("Events returned from Event.get_all():", events)
+
     for event in events:
         db = get_db()
         cursor = db.cursor()
@@ -28,7 +30,8 @@ def list_events():
             "SELECT COUNT(*) FROM registrations WHERE event_id = %s AND status = 'registered'",
             (event['id'],)
         )
-        count = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        count = result['count'] if result else 0
         cursor.close()
         event['registered_count'] = count
         # Attach maps embed URL
@@ -99,18 +102,14 @@ def create_event():
     cursor = db.cursor()
     if request.method == "POST":
         try:
-            # Activity group: use manual entry if provided, else dropdown
+            # 1) Get activity group from manual entry or dropdown
             group_name = request.form.get('activity_group_name') or request.form.get('activity_group_name_select')
             if not group_name:
                 raise Exception('Activity group is required')
 
-            # Check if activity group exists, if not create it
-            cursor.execute(
-                "SELECT name FROM activity_group WHERE name = %s",
-                (group_name,)
-            )
+            # 2) Check if activity group exists; create if not
+            cursor.execute("SELECT name FROM activity_group WHERE name = %s", (group_name,))
             existing_group = cursor.fetchone()
-            
             if not existing_group:
                 cursor.execute(
                     """
@@ -118,30 +117,24 @@ def create_event():
                         name, category, description, founding_date, website, email,
                         phone_number, social_media_links, is_active, total_members,
                         event_frequency, membership_fee, open_to_public, min_age
-                    )
-                    VALUES (%s, 'General', 'New activity group', NOW(), '', '', '', '', TRUE, 0, 'monthly', 0, TRUE, 18)
+                    ) VALUES (%s, 'General', 'New activity group', NOW(), '', '', '', '', TRUE, 0, 'monthly', 0, TRUE, 18)
                     """,
                     (group_name,)
                 )
                 db.commit()
 
-            # Location: check if exists, else insert
+            # 3) Insert or get location ID
             address = request.form['address']
             city = request.form['city']
             state = request.form['state']
             zip_code = request.form['zip_code']
-            
             cursor.execute(
-                """
-                SELECT id FROM location
-                WHERE address = %s AND city = %s AND state = %s AND zip_code = %s
-                """,
+                "SELECT id FROM location WHERE address = %s AND city = %s AND state = %s AND zip_code = %s",
                 (address, city, state, zip_code)
             )
             location = cursor.fetchone()
-            
             if location:
-                location_id = location[0]
+                location_id = location["id"]
             else:
                 cursor.execute(
                     "INSERT INTO location (address, city, state, zip_code) VALUES (%s, %s, %s, %s) RETURNING id",
@@ -150,31 +143,48 @@ def create_event():
                 location_result = cursor.fetchone()
                 if location_result is None:
                     raise Exception("Failed to insert location and retrieve ID.")
-                location_id = location_result[0]
+                print(f"location_result: {location_result}")
+                location_id = location_result["id"]
                 db.commit()
 
-            # Parse event date in DD/MM/YYYY format from the form
+            # 4) Parse event date in DD/MM/YYYY format
             date_str = request.form['date']
             try:
-                parsed_date = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
+                parsed_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
             except ValueError:
-                raise Exception("Invalid date format. Please use DD/MM/YYYY.")
+                raise Exception("Invalid event date format. Use DD/MM/YYYY.")
 
-            # Create event
+            # 5) Parse registration deadline (optional field)
+            deadline_str = request.form.get('registration_deadline')
+            registration_deadline = None
+            if deadline_str:
+                try:
+                    registration_deadline = datetime.datetime.strptime(deadline_str, "%Y-%m-%d").date()
+
+                except ValueError:
+                    raise Exception("Invalid registration deadline format. Use DD/MM/YYYY.")
+
+            # 6) Get event name (REQUIRED, and what you missed before)
+            event_name = request.form.get('event_name')
+            if not event_name:
+                raise Exception("Event name is required.")
+
+            # 7) Insert new event with name included
             cursor.execute(
                 """
                 INSERT INTO event (
-                    activity_group_name, date, max_participants, cost,
+                    activity_group_name, name, date, max_participants, cost,
                     registration_required, registration_deadline, location_id, created_by
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
                 """,
                 (
                     group_name,
+                    event_name,
                     parsed_date,
                     request.form.get('max_participants'),
                     request.form.get('cost', 0),
                     'registration_required' in request.form,
-                    request.form.get('registration_deadline'),
+                    registration_deadline,
                     location_id,
                     current_user.id
                 )
@@ -182,18 +192,21 @@ def create_event():
             event_result = cursor.fetchone()
             if event_result is None:
                 raise Exception("Failed to insert event and retrieve ID.")
-            event_id = event_result[0]
+            event_id = event_result["id"]
             db.commit()
 
-            # Store maps embed URL if provided
+            # 8) Store Google Maps embed if provided
             maps_embed = request.form.get('maps_embed')
             if maps_embed:
                 maps_manager.set_event_map(event_id, maps_embed)
 
             flash("Event created successfully", "success")
             return redirect(url_for("events.list_events"))
+
         except Exception as e:
             db.rollback()
+            import traceback
+            traceback.print_exc()
             flash(f"Error creating event: {str(e)}", "error")
         finally:
             cursor.close()
@@ -204,6 +217,7 @@ def create_event():
     activity_groups = cursor.fetchall()
     cursor.close()
     return render_template("events/create.html", activity_groups=activity_groups)
+
 
 
 
@@ -222,7 +236,8 @@ def edit_event(event_id):
         try:
             date_str = request.form['date']
             try:
-                parsed_date = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
+                parsed_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+
             except ValueError:
                 raise Exception("Invalid date format. Please use DD/MM/YYYY.")
 

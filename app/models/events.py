@@ -97,7 +97,8 @@ class Event:
         events = cursor.fetchall()
         cursor.close()
         
-        return [dict(event) for event in events]
+        return [dict(event) for event in events if event is not None and isinstance(event, dict)]
+
 
 
     @staticmethod
@@ -106,7 +107,7 @@ class Event:
         db = get_db()
         cursor = db.cursor()
         allowed_fields = {
-            'activity_group_name', 'date', 'max_participants', 'cost',
+            'activity_group_name', 'name', 'date', 'max_participants', 'cost',
             'registration_required', 'registration_deadline', 'location_id'
         }
         

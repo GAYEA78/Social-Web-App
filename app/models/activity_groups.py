@@ -1,10 +1,13 @@
-from enum import StrEnum
+from enum import Enum
 from typing import Optional
 from datetime import date, datetime
 
 from pydantic import BaseModel
 
 from app.utils.database import get_db
+
+class StrEnum(str, Enum):
+    pass
 
 
 class EventFrequency(StrEnum):
@@ -68,7 +71,7 @@ class ActivityGroup(BaseModel):
     @staticmethod
     def get(name):  
         db = get_db()
-        group = db.execute("""SELECT * FROM activity_group WHERE name = ?""", (name,)).fetchone()
+        group = db.execute("""SELECT * FROM activity_group WHERE name = %s""", (name,)).fetchone()
 
         if group is None:
             return None
