@@ -2,7 +2,7 @@
 
 This project delivers a lightweight, real-world web application that helps Boston residents find and participate in local activity groups. It solves the problem of scattered or inaccessible group listings by offering a centralized, intuitive platform where users can join activities, register for events, and leave feedback.
 
-Organizers benefit from tools that help them manage sessions, track membership, and gather insights from reviews. The backend is built in Flask with a normalized SQLite database and a user-friendly HTML/CSS/Jinja2 frontend.
+Organizers benefit from tools that help them manage sessions, track membership, and gather insights from reviews. The backend is built in Flask with a PostgreSQL database and a user-friendly HTML/CSS/Jinja2 frontend.
 
 Key capabilities:
 - Discover and filter groups by interest, cost, frequency, and age group
