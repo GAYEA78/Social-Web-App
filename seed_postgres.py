@@ -5,7 +5,6 @@ from flask_bcrypt import Bcrypt
 # Initialize bcrypt for password hashing
 bcrypt = Bcrypt()
 
-# Replace YOUR_PASSWORD with your actual password (you already have it correct in your snippet):
 DATABASE_URL = "postgresql://social_web_app_s6s9_user:1Plv8JdbQBwV4jRXHuqD0fHC0f8F9kyu@dpg-d1fesa2dbo4c739v6tvg-a.ohio-postgres.render.com/social_web_app_s6s9"
 
 def create_or_update_user(c, username, email, password, role):
@@ -67,7 +66,7 @@ def main():
         print("User - Username: testuser2, Password: user123")
         print("User - Username: testuser3, Password: user123")
     except Exception as e:
-        print(f"\n❌ Error creating test data: {e}")
+        print(f"\n Error creating test data: {e}")
         conn.rollback()
     finally:
         conn.close()
