@@ -222,11 +222,3 @@ The E-R diagram below shows how users, events, groups, and registrations are rel
 
 ---
 
-## Presentation Materials
-
-The full project slide deck is available in the repo as a pdf file. It includes:
-- Problem background
-- E-R diagram
-- Schema breakdown
-- Application flow
-- Demo examples
