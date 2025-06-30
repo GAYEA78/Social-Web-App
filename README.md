@@ -1,5 +1,5 @@
 ## Overview
-
+You can run the app directly from its deployed Website: https://social-web-app-o8cd.onrender.com/
 This project delivers a lightweight, real-world web application that helps Boston residents find and participate in local activity groups. It solves the problem of scattered or inaccessible group listings by offering a centralized, intuitive platform where users can join activities, register for events, and leave feedback.
 
 Organizers benefit from tools that help them manage sessions, track membership, and gather insights from reviews. The backend is built in Flask with a PostgreSQL database and a user-friendly HTML/CSS/Jinja2 frontend.
@@ -37,6 +37,7 @@ These enhancements improve both user experience and administrative efficiency.
 ---
 
 ## Quick Start: Deployment Instructions (Follow on CMD command prompt terminal)
+If you want to run it directly from its deployed Website: https://social-web-app-o8cd.onrender.com/
 
 1. Clone the Repository
 ```bash
